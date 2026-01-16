@@ -33,8 +33,8 @@ def _require_login():
 _require_login()
 
 PAGES = [
-    "Registrar comportamiento",
     "Ranking",
+    "Registrar comportamiento",
     "Historial",
     "Personas",
 ]
