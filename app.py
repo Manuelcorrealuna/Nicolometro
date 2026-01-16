@@ -7,6 +7,31 @@ st.set_page_config(page_title="Nicolometro", layout="centered")
 
 st.title("Nicolometro")
 
+USERS = {
+    "manuelcorrealuna@gmail.com": "12345678",
+    "nmoreno@sanisidro.gob.ar": "12345678",
+}
+
+
+def _require_login():
+    if st.session_state.get("authenticated"):
+        return
+
+    st.subheader("Iniciar sesion")
+    email = st.text_input("Email")
+    password = st.text_input("Contrasena", type="password")
+    if st.button("Entrar"):
+        if USERS.get(email) == password:
+            st.session_state["authenticated"] = True
+            st.rerun()
+        else:
+            st.error("Credenciales invalidas.")
+
+    st.stop()
+
+
+_require_login()
+
 PAGES = [
     "Registrar comportamiento",
     "Ranking",
