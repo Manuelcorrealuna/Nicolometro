@@ -80,21 +80,6 @@ KIND_LABELS = {"good": "Positivo", "bad": "Negativo"}
 if page == "Personas":
     st.subheader("Personas")
 
-    with st.form("person_form", clear_on_submit=True):
-        display_name = st.text_input("Nombre visible *")
-        alias = st.text_input("Alias (opcional)")
-        submitted = st.form_submit_button("Crear persona")
-
-    if submitted:
-        if not display_name.strip():
-            st.error("El nombre visible es obligatorio.")
-        else:
-            try:
-                db.add_person(display_name.strip(), alias.strip() or None)
-                st.success("Persona creada.")
-            except Exception as exc:
-                st.error(f"No se pudo crear la persona: {exc}")
-
     try:
         people = db.get_people()
     except Exception as exc:
@@ -102,16 +87,6 @@ if page == "Personas":
         people = []
 
     if people:
-        display_people = []
-        for person in people:
-            display_people.append(
-                {
-                    "Persona": person.get("display_name"),
-                    "Alias": person.get("alias"),
-                }
-            )
-        st.dataframe(display_people, use_container_width=True)
-
         st.markdown("### Performance por persona")
         selected_person = st.selectbox("Selecciona una persona", [p["display_name"] for p in people])
         person_id = next((p["id"] for p in people if p["display_name"] == selected_person), None)
@@ -143,6 +118,33 @@ if page == "Personas":
                 st.altair_chart(chart, use_container_width=True)
             else:
                 st.info("No hay eventos para esta persona.")
+
+        st.markdown("### Agregar persona")
+        with st.form("person_form", clear_on_submit=True):
+            display_name = st.text_input("Nombre visible *")
+            alias = st.text_input("Alias (opcional)")
+            submitted = st.form_submit_button("Crear persona")
+
+        if submitted:
+            if not display_name.strip():
+                st.error("El nombre visible es obligatorio.")
+            else:
+                try:
+                    db.add_person(display_name.strip(), alias.strip() or None)
+                    st.success("Persona creada.")
+                except Exception as exc:
+                    st.error(f"No se pudo crear la persona: {exc}")
+
+        st.markdown("### Listado de personas")
+        display_people = []
+        for person in people:
+            display_people.append(
+                {
+                    "Persona": person.get("display_name"),
+                    "Alias": person.get("alias"),
+                }
+            )
+        st.dataframe(display_people, use_container_width=True)
     else:
         st.info("No hay personas registradas.")
 
