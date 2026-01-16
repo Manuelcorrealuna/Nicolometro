@@ -225,8 +225,10 @@ elif page == "Ranking":
                 )
                 st.altair_chart(chart, use_container_width=True)
 
-        st.markdown("### Detalle de rankings")
+        st.markdown("### Los Mejores")
         st.dataframe(best_display, use_container_width=True)
+
+        st.markdown("### Los Peores")
         st.dataframe(worst_display, use_container_width=True)
 
 
