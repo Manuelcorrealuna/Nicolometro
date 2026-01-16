@@ -1,6 +1,7 @@
 import streamlit as st
 from datetime import datetime, timedelta, timezone, time
 import pandas as pd
+import altair as alt
 import db
 
 st.set_page_config(page_title="Nicolometro", layout="centered")
@@ -166,7 +167,6 @@ elif page == "Ranking":
         best = sorted(ranking, key=lambda x: x["total_points"], reverse=True)
         worst = sorted(ranking, key=lambda x: x["total_points"])
 
-        st.markdown("### Top Mejores Personas")
         best_display = []
         for row in best:
             best_display.append(
@@ -176,16 +176,7 @@ elif page == "Ranking":
                     "Eventos registrados": row.get("event_count"),
                 }
             )
-        st.dataframe(best_display, use_container_width=True)
 
-        top10_best = best[:10]
-        if top10_best:
-            chart_data = pd.DataFrame(
-                [{"Persona": r.get("person_name"), "Puntaje Total": r.get("total_points")} for r in top10_best]
-            ).set_index("Persona")
-            st.bar_chart(chart_data)
-
-        st.markdown("### Top Peores Personas")
         worst_display = []
         for row in worst:
             worst_display.append(
@@ -195,14 +186,48 @@ elif page == "Ranking":
                     "Eventos registrados": row.get("event_count"),
                 }
             )
-        st.dataframe(worst_display, use_container_width=True)
 
+        top10_best = best[:10]
         low10_worst = worst[:10]
-        if low10_worst:
-            chart_data = pd.DataFrame(
-                [{"Persona": r.get("person_name"), "Puntaje Total": r.get("total_points")} for r in low10_worst]
-            ).set_index("Persona")
-            st.bar_chart(chart_data)
+
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("### Top Mejores Personas")
+            if top10_best:
+                chart_data = pd.DataFrame(
+                    [{"Persona": r.get("person_name"), "Puntaje Total": r.get("total_points")} for r in top10_best]
+                )
+                chart = (
+                    alt.Chart(chart_data)
+                    .mark_bar()
+                    .encode(
+                        x=alt.X("Puntaje Total:Q", title="Puntaje Total"),
+                        y=alt.Y("Persona:N", sort="-x", title=None),
+                        tooltip=["Persona", "Puntaje Total"],
+                    )
+                )
+                st.altair_chart(chart, use_container_width=True)
+
+        with col2:
+            st.markdown("### Top Peores Personas")
+            if low10_worst:
+                chart_data = pd.DataFrame(
+                    [{"Persona": r.get("person_name"), "Puntaje Total": r.get("total_points")} for r in low10_worst]
+                )
+                chart = (
+                    alt.Chart(chart_data)
+                    .mark_bar()
+                    .encode(
+                        x=alt.X("Puntaje Total:Q", title="Puntaje Total"),
+                        y=alt.Y("Persona:N", sort="x", title=None),
+                        tooltip=["Persona", "Puntaje Total"],
+                    )
+                )
+                st.altair_chart(chart, use_container_width=True)
+
+        st.markdown("### Detalle de rankings")
+        st.dataframe(best_display, use_container_width=True)
+        st.dataframe(worst_display, use_container_width=True)
 
 
 elif page == "Historial":
