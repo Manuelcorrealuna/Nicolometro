@@ -24,7 +24,10 @@ def _require_login():
     if st.button("Entrar"):
         if USERS.get(email) == password:
             st.session_state["authenticated"] = True
-            st.rerun()
+            if hasattr(st, "rerun"):
+                st.rerun()
+            else:
+                st.experimental_rerun()
         else:
             st.error("Credenciales invalidas.")
 
@@ -36,6 +39,7 @@ _require_login()
 PAGES = [
     "Ranking",
     "Registrar comportamiento",
+    "Balance mensual",
     "Historial",
     "Personas",
 ]
@@ -107,6 +111,38 @@ if page == "Personas":
                 }
             )
         st.dataframe(display_people, use_container_width=True)
+
+        st.markdown("### Performance por persona")
+        selected_person = st.selectbox("Selecciona una persona", [p["display_name"] for p in people])
+        person_id = next((p["id"] for p in people if p["display_name"] == selected_person), None)
+        if person_id:
+            try:
+                events = db.get_events(person_id=person_id)
+            except Exception as exc:
+                st.error(f"No se pudo cargar el historial: {exc}")
+                events = []
+
+            if events:
+                df = pd.DataFrame(events)
+                df["event_at"] = pd.to_datetime(df["event_at"], utc=True, errors="coerce")
+                df = df.dropna(subset=["event_at"])
+                df["fecha"] = df["event_at"].dt.floor("D")
+                series = df.groupby("fecha", as_index=False)["category_points"].sum()
+                series.rename(columns={"category_points": "puntaje"}, inplace=True)
+                series = series.sort_values("fecha")
+
+                chart = (
+                    alt.Chart(series)
+                    .mark_line(point=True)
+                    .encode(
+                        x=alt.X("fecha:T", title="Fecha"),
+                        y=alt.Y("puntaje:Q", title="Puntaje"),
+                        tooltip=["fecha:T", "puntaje:Q"],
+                    )
+                )
+                st.altair_chart(chart, use_container_width=True)
+            else:
+                st.info("No hay eventos para esta persona.")
     else:
         st.info("No hay personas registradas.")
 
@@ -164,8 +200,10 @@ elif page == "Ranking":
     if not ranking:
         st.info("No hay eventos en el rango seleccionado.")
     else:
-        best = sorted(ranking, key=lambda x: x["total_points"], reverse=True)
-        worst = sorted(ranking, key=lambda x: x["total_points"])
+        positive = [r for r in ranking if (r.get("total_points") or 0) > 0]
+        negative = [r for r in ranking if (r.get("total_points") or 0) < 0]
+        best = sorted(positive, key=lambda x: x["total_points"], reverse=True)
+        worst = sorted(negative, key=lambda x: x["total_points"])
 
         best_display = []
         for row in best:
@@ -230,6 +268,43 @@ elif page == "Ranking":
 
         st.markdown("### Los Peores")
         st.dataframe(worst_display, use_container_width=True)
+
+
+elif page == "Balance mensual":
+    st.subheader("Balance mensual")
+
+    try:
+        monthly_events = db.get_events()
+    except Exception as exc:
+        st.error(f"No se pudo cargar el balance mensual: {exc}")
+        monthly_events = []
+
+    if monthly_events:
+        df_month = pd.DataFrame(monthly_events)
+        df_month["event_at"] = pd.to_datetime(df_month["event_at"])
+        df_month["mes"] = df_month["event_at"].dt.to_period("M").astype(str)
+        months = sorted(df_month["mes"].unique(), reverse=True)
+        selected_month = st.selectbox("Mes", months)
+
+        month_df = df_month[df_month["mes"] == selected_month].copy()
+        month_df["puntaje_positivo"] = month_df["category_points"].clip(lower=0)
+        month_df["puntaje_negativo"] = month_df["category_points"].clip(upper=0)
+        summary = (
+            month_df.groupby("person_name", as_index=False)
+            .agg(
+                **{
+                    "Puntaje Positivo": ("puntaje_positivo", "sum"),
+                    "Puntaje Negativo": ("puntaje_negativo", "sum"),
+                    "Puntaje Total": ("category_points", "sum"),
+                    "Eventos registrados": ("category_points", "count"),
+                }
+            )
+            .rename(columns={"person_name": "Persona"})
+            .sort_values("Puntaje Total", ascending=False)
+        )
+        st.dataframe(summary, use_container_width=True)
+    else:
+        st.info("No hay eventos para calcular el balance mensual.")
 
 
 elif page == "Historial":
